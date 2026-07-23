@@ -35,11 +35,22 @@ class TargetAPIConfig(BaseConfig):
     HOST: str
     PORT: int
 
+    @property
+    def target_api_url(self):
+        return f"http://{self.HOST}:{self.PORT}"
+
+
+class CandidateConfig(BaseConfig):
+    model_config = SettingsConfigDict(env_prefix="CANDIDATE_")
+
+    ID: str
+
 
 class Config(BaseSettings):
     db: DBConfig = Field(default_factory=DBConfig)
     api: APIConfig = Field(default_factory=APIConfig)
     target_api: TargetAPIConfig = Field(default_factory=TargetAPIConfig)
+    candidate: CandidateConfig = Field(default_factory=CandidateConfig)
 
 
 settings = Config()

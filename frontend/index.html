@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Downloader</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .tab-active { border-bottom: 2px solid #2563eb; color: #2563eb; }
+        .tab-inactive { border-bottom: 2px solid transparent; color: #6b7280; }
+        .tab-inactive:hover { color: #374151; }
+        .sort-header { cursor: pointer; user-select: none; }
+        .sort-header:hover { background-color: #f3f4f6; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <header class="bg-white shadow-sm">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="flex gap-6">
+                <button id="tab-download" onclick="switchTab('download')" class="tab-active flex items-center gap-2 py-4 font-medium transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Скачивание
+                </button>
+                <button id="tab-files" onclick="switchTab('files')" class="tab-inactive flex items-center gap-2 py-4 font-medium transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Файлы и расчёты
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+        <div id="page-download" class="max-w-2xl mx-auto">
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Страница скачивания
+                </h2>
+
+                <div id="start-time-block" class="hidden mb-6 p-4 bg-blue-50 rounded-lg flex items-center gap-3 text-blue-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span><strong>Время старта (НСК):</strong> <span id="start-time"></span></span>
+                </div>
+
+                <div id="error-block" class="hidden mb-6 p-4 bg-red-50 rounded-lg flex items-center gap-3 text-red-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span id="error-message"></span>
+                </div>
+
+                <button id="btn-start" onclick="startDownload()" class="w-full py-3 px-4 rounded-lg font-semibold text-white flex items-center justify-center gap-2 transition-colors bg-blue-600 hover:bg-blue-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    Скачать данные
+                </button>
+
+                <div id="progress-block" class="hidden mt-8 space-y-4">
+                    <div class="flex justify-between text-sm font-medium text-gray-700">
+                        <span id="progress-message">Загрузка...</span>
+                        <span id="progress-counts">0 из 0</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden">
+                        <div id="progress-bar" class="bg-blue-600 h-4 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
+                    </div>
+                    <div class="text-center text-sm text-gray-500">
+                        Статус: <span id="progress-status" class="font-semibold capitalize">idle</span>
+                    </div>
+                </div>
+
+                <div id="completed-block" class="hidden mt-8 p-4 bg-green-50 rounded-lg flex items-center gap-3 text-green-800">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span id="completed-message" class="font-semibold"></span>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-files" class="hidden max-w-6xl mx-auto space-y-6">
+            <div class="flex justify-between items-center flex-wrap gap-4">
+                <h2 class="text-2xl font-bold flex items-center gap-2">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Скачанные файлы
+                </h2>
+                <div class="flex gap-4 text-sm flex-wrap">
+                    <button onclick="selectAllFiles()" class="text-blue-600 hover:underline">Выбрать все</button>
+                    <span class="text-gray-300">|</span>
+                    <button onclick="deselectAllFiles()" class="text-blue-600 hover:underline">Снять все</button>
+                    <span class="text-gray-300">|</span>
+                    <button onclick="togglePageSelection()" class="text-blue-600 hover:underline" id="btn-toggle-page">Выбрать на странице</button>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg shadow overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b">
+                        <tr>
+                            <th class="p-4 w-12 text-left">
+                                <button onclick="togglePageSelection()" id="btn-header-check" class="focus:outline-none">
+                                    <svg id="icon-header-check" class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                </button>
+                            </th>
+                            <th class="p-4 font-semibold text-gray-700 text-left">
+                                <div class="flex items-center gap-2">
+                                    Имя файла
+                                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                                </div>
+                            </th>
+                            <th onclick="sortFiles('downloaded_at')" class="sort-header p-4 font-semibold text-gray-700 text-left">
+                                <div class="flex items-center gap-2">
+                                    Время скачивания (НСК)
+                                    <span id="sort-icon-downloaded_at" class="text-gray-400"></span>
+                                </div>
+                            </th>
+                            <th onclick="sortFiles('status')" class="sort-header p-4 font-semibold text-gray-700 text-left">
+                                <div class="flex items-center gap-2">
+                                    Статус
+                                    <span id="sort-icon-status" class="text-gray-400"></span>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody id="files-table-body" class="divide-y"></tbody>
+                </table>
+            </div>
+
+            <div class="flex justify-between items-center">
+                <span id="pagination-info" class="text-sm text-gray-600">Загрузка...</span>
+                <div class="flex gap-2">
+                    <button onclick="changePage(-1)" id="btn-prev" class="p-2 rounded border disabled:opacity-50 hover:bg-gray-50" disabled>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+                    </button>
+                    <button onclick="changePage(1)" id="btn-next" class="p-2 rounded border disabled:opacity-50 hover:bg-gray-50" disabled>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-end">
+                <button onclick="calculateStats()" id="btn-calculate" class="flex items-center gap-2 bg-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors" disabled>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    Произвести расчёты (<span id="selected-count">0</span>)
+                </button>
+            </div>
+
+            <div id="calc-result-block" class="hidden bg-gray-50 p-6 rounded-lg border space-y-6">
+                <h3 class="text-xl font-bold">Результаты расчёта</h3>
+                <div>
+                    <h4 class="font-semibold mb-3 text-gray-700">Общая статистика:</h4>
+                    <div id="total-stats" class="grid grid-cols-5 gap-4"></div>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-3 text-gray-700">Статистика по файлам:</h4>
+                    <div id="file-stats" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_BASE = '';
+        
+        let currentPage = 1;
+        const pageSize = 10;
+        let globalSelectedIds = new Set();
+        let currentFiles = [];
+        let totalFiles = 0;
+        let pollingInterval = null;
+        let startTime = null;
+        let currentSort = { field: 'downloaded_at', order: 'desc' };
+
+        async function fetchApi(endpoint, options = {}) {
+            const response = await fetch(`${API_BASE}${endpoint}`, {
+                ...options,
+                headers: { 'Content-Type': 'application/json', ...options.headers },
+            });
+            const data = await response.json();
+            if (data.error) {
+                throw new Error('Произошла ошибка');
+            }
+            return data.payload;
+        }
+
+        function formatNskTime(isoString) {
+            if (!isoString) return '—';
+            
+            try {
+                const utcString = isoString.endsWith('Z') ? isoString : isoString + 'Z';
+                const date = new Date(utcString);
+                
+                if (isNaN(date.getTime())) {
+                    return '—';
+                }
+                
+                return date.toLocaleString('ru-RU', {
+                    timeZone: 'Asia/Novosibirsk',
+                    dateStyle: 'short',
+                    timeStyle: 'medium',
+                    hour12: false
+                });
+            } catch (e) {
+                console.error('Error formatting date:', e);
+                return '—';
+            }
+        }
+
+        function formatNskDateTime(date) {
+            return date.toLocaleString('ru-RU', {
+                timeZone: 'Asia/Novosibirsk',
+                dateStyle: 'medium',
+                timeStyle: 'medium',
+            });
+        }
+
+        function switchTab(tab) {
+            document.getElementById('tab-download').className = tab === 'download' ? 'tab-active flex items-center gap-2 py-4 font-medium transition-colors' : 'tab-inactive flex items-center gap-2 py-4 font-medium transition-colors';
+            document.getElementById('tab-files').className = tab === 'files' ? 'tab-active flex items-center gap-2 py-4 font-medium transition-colors' : 'tab-inactive flex items-center gap-2 py-4 font-medium transition-colors';
+            document.getElementById('page-download').classList.toggle('hidden', tab !== 'download');
+            document.getElementById('page-files').classList.toggle('hidden', tab !== 'files');
+            if (tab === 'files') loadFiles();
+            if (tab === 'download') checkDownloadStatus();
+        }
+
+        async function checkDownloadStatus() {
+            try {
+                const progress = await fetchApi('/api/v1/download/progress');
+                
+                if (progress.status === 'in_progress' || progress.status === 'completed') {
+                    if (progress.started_at) {
+                        startTime = progress.started_at;
+                        localStorage.setItem('downloadStartTime', startTime);
+                    } else if (localStorage.getItem('downloadStartTime')) {
+                        startTime = localStorage.getItem('downloadStartTime');
+                    }
+                    
+                    if (startTime) {
+                        document.getElementById('start-time').textContent = formatNskDateTime(new Date(startTime));
+                        document.getElementById('start-time-block').classList.remove('hidden');
+                    }
+                    
+                    document.getElementById('progress-block').classList.remove('hidden');
+                    updateProgressUI(progress);
+                    
+                    if (progress.status === 'completed') {
+                        document.getElementById('completed-block').classList.remove('hidden');
+                        document.getElementById('completed-message').textContent = progress.current_message || '✅ Все файлы скачаны!';
+                        document.getElementById('btn-start').disabled = true;
+                        document.getElementById('btn-start').innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Скачивание завершено';
+                        document.getElementById('btn-start').classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                        document.getElementById('btn-start').classList.add('bg-green-600', 'cursor-not-allowed');
+                        document.getElementById('progress-block').classList.add('hidden');
+                    } else if (progress.status === 'in_progress') {
+                        startPolling();
+                        document.getElementById('btn-start').disabled = true;
+                        document.getElementById('btn-start').innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Процесс идёт...';
+                        document.getElementById('btn-start').classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                        document.getElementById('btn-start').classList.add('bg-gray-400', 'cursor-not-allowed');
+                    }
+                } else {
+                    document.getElementById('start-time-block').classList.add('hidden');
+                    localStorage.removeItem('downloadStartTime');
+                    startTime = null;
+                }
+            } catch (e) {
+                document.getElementById('start-time-block').classList.add('hidden');
+            }
+        }
+
+        async function startDownload() {
+            const btn = document.getElementById('btn-start');
+            const errorBlock = document.getElementById('error-block');
+            const startTimeBlock = document.getElementById('start-time-block');
+            
+            errorBlock.classList.add('hidden');
+            
+            try {
+                const progress = await fetchApi('/api/v1/download/progress');
+                if (progress.status === 'completed') {
+                    document.getElementById('completed-block').classList.remove('hidden');
+                    document.getElementById('completed-message').textContent = '✅ Все файлы уже скачаны!';
+                    
+                    if (progress.started_at) {
+                        startTime = progress.started_at;
+                        document.getElementById('start-time').textContent = formatNskDateTime(new Date(startTime));
+                        startTimeBlock.classList.remove('hidden');
+                    }
+                    
+                    btn.disabled = true;
+                    btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Скачивание завершено';
+                    btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                    btn.classList.add('bg-green-600', 'cursor-not-allowed');
+                    return;
+                }
+            } catch (e) {}
+            
+            startTime = new Date().toISOString();
+            localStorage.setItem('downloadStartTime', startTime);
+            
+            document.getElementById('start-time').textContent = formatNskDateTime(new Date(startTime));
+            startTimeBlock.classList.remove('hidden');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Процесс идёт...';
+            btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+
+            try {
+                await fetchApi('/api/v1/download/start', { method: 'POST' });
+                
+                setTimeout(async () => {
+                    try {
+                        const progress = await fetchApi('/api/v1/download/progress');
+                        
+                        if (progress.status === 'completed') {
+                            updateProgressUI(progress);
+                            document.getElementById('completed-block').classList.remove('hidden');
+                            document.getElementById('completed-message').textContent = progress.current_message || '✅ Скачивание завершено!';
+                            
+                            btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Скачивание завершено';
+                            btn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                            btn.classList.add('bg-green-600', 'cursor-not-allowed');
+                            
+                            document.getElementById('progress-block').classList.add('hidden');
+                        } else if (progress.status === 'in_progress') {
+                            document.getElementById('progress-block').classList.remove('hidden');
+                            updateProgressUI(progress);
+                            startPolling();
+                        } else {
+                            document.getElementById('progress-block').classList.remove('hidden');
+                            updateProgressUI(progress);
+                            startPolling();
+                        }
+                    } catch (err) {
+                        console.error('Error checking immediate status:', err);
+                        document.getElementById('progress-block').classList.remove('hidden');
+                        document.getElementById('completed-block').classList.add('hidden');
+                        startPolling();
+                    }
+                }, 500);
+                
+            } catch (err) {
+                errorBlock.classList.remove('hidden');
+                document.getElementById('error-message').textContent = 'Не удалось запустить скачивание';
+                resetButton();
+            }
+        }
+
+        function resetButton() {
+            const btn = document.getElementById('btn-start');
+            btn.disabled = false;
+            btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg> Скачать данные';
+            btn.classList.remove('bg-gray-400', 'cursor-not-allowed', 'bg-green-600');
+            btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            
+            document.getElementById('start-time-block').classList.add('hidden');
+            localStorage.removeItem('downloadStartTime');
+            startTime = null;
+        }
+
+        function startPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(async () => {
+                try {
+                    const progress = await fetchApi('/api/v1/download/progress');
+                    updateProgressUI(progress);
+                    
+                    if (progress.started_at && !startTime) {
+                        startTime = progress.started_at;
+                        document.getElementById('start-time').textContent = formatNskDateTime(new Date(startTime));
+                        document.getElementById('start-time-block').classList.remove('hidden');
+                    }
+                    
+                    if (progress.status === 'completed' || progress.status === 'error') {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                        
+                        if (progress.status === 'completed') {
+                            document.getElementById('completed-block').classList.remove('hidden');
+                            document.getElementById('completed-message').textContent = progress.current_message;
+                            
+                            const btn = document.getElementById('btn-start');
+                            btn.disabled = true;
+                            btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Скачивание завершено';
+                            btn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                            btn.classList.add('bg-green-600', 'cursor-not-allowed');
+                            
+                            document.getElementById('progress-block').classList.add('hidden');
+                        } else {
+                            resetButton();
+                        }
+                    }
+                } catch (err) {
+                    console.error('Polling error:', err);
+                }
+            }, 1000);
+        }
+
+        function updateProgressUI(progress) {
+            document.getElementById('progress-message').textContent = progress.current_message;
+            document.getElementById('progress-counts').textContent = `${progress.downloaded_files} из ${progress.total_files}`;
+            document.getElementById('progress-status').textContent = progress.status;
+            const percent = progress.total_files > 0 ? (progress.downloaded_files / progress.total_files) * 100 : 0;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+        }
+
+        function sortFiles(field) {
+            if (currentSort.field === field) {
+                currentSort.order = currentSort.order === 'desc' ? 'asc' : 'desc';
+            } else {
+                currentSort.field = field;
+                currentSort.order = 'desc';
+            }
+            updateSortIcons();
+            loadFiles();
+        }
+
+        function updateSortIcons() {
+            ['downloaded_at', 'status'].forEach(field => {
+                const icon = document.getElementById(`sort-icon-${field}`);
+                if (field === currentSort.field) {
+                    if (currentSort.order === 'desc') {
+                        icon.innerHTML = '↓';
+                    } else {
+                        icon.innerHTML = '↑';
+                    }
+                } else {
+                    icon.innerHTML = '';
+                }
+            });
+        }
+
+        async function loadFiles() {
+            try {
+                const data = await fetchApi(`/api/v1/files?page=${currentPage}&page_size=${pageSize}&sort_by=${currentSort.field}&sort_order=${currentSort.order}`);
+                currentFiles = data.files;
+                totalFiles = data.total;
+                renderFilesTable(data.files);
+                updatePagination(data.total, data.page, data.page_size);
+                updateSelectedCount();
+                document.getElementById('calc-result-block').classList.add('hidden');
+            } catch (err) {
+                console.error('Error loading files:', err);
+            }
+        }
+
+        function renderFilesTable(files) {
+            const tbody = document.getElementById('files-table-body');
+            tbody.innerHTML = files.map(file => `
+                <tr class="hover:bg-gray-50">
+                    <td class="p-4 text-left">
+                        <button onclick="toggleFile(${file.id})" class="focus:outline-none">
+                            ${globalSelectedIds.has(file.id) 
+                                ? '<svg class="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>' 
+                                : '<svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
+                            }
+                        </button>
+                    </td>
+                    <td class="p-4 font-mono text-sm text-left">${file.name}</td>
+                    <td class="p-4 text-sm text-gray-600 text-left">${formatNskTime(file.downloaded_at)}</td>
+                    <td class="p-4 text-left">
+                        ${file.has_content 
+                            ? '<span class="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">Готов</span>' 
+                            : '<span class="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded-full">В процессе</span>'
+                        }
+                    </td>
+                </tr>
+            `).join('');
+            updateHeaderCheckbox();
+        }
+
+        function updatePagination(total, page, pageSize) {
+            const totalPages = Math.ceil(total / pageSize);
+            document.getElementById('pagination-info').textContent = `Страница ${page} из ${totalPages} (Всего: ${total})`;
+            document.getElementById('btn-prev').disabled = page === 1;
+            document.getElementById('btn-next').disabled = page >= totalPages;
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            loadFiles();
+        }
+
+        function toggleFile(id) {
+            if (globalSelectedIds.has(id)) {
+                globalSelectedIds.delete(id);
+            } else {
+                globalSelectedIds.add(id);
+            }
+            renderFilesTable(currentFiles);
+            updateSelectedCount();
+        }
+
+        function togglePageSelection() {
+            const allOnPage = currentFiles.map(f => f.id);
+            const allSelected = allOnPage.every(id => globalSelectedIds.has(id));
+            if (allSelected) {
+                allOnPage.forEach(id => globalSelectedIds.delete(id));
+            } else {
+                allOnPage.forEach(id => globalSelectedIds.add(id));
+            }
+            renderFilesTable(currentFiles);
+            updateSelectedCount();
+        }
+
+        function deselectAllFiles() {
+            globalSelectedIds.clear();
+            renderFilesTable(currentFiles);
+            updateSelectedCount();
+        }
+
+        async function selectAllFiles() {
+            try {
+                const allIds = await fetchApi('/api/v1/files?ids_only=true');
+                globalSelectedIds = new Set(allIds.file_ids);
+                renderFilesTable(currentFiles);
+                updateSelectedCount();
+            } catch (err) {
+                alert('Ошибка при выборе всех файлов');
+            }
+        }
+
+        function updateHeaderCheckbox() {
+            const allOnPage = currentFiles.map(f => f.id);
+            const allSelected = allOnPage.length > 0 && allOnPage.every(id => globalSelectedIds.has(id));
+            const icon = document.getElementById('icon-header-check');
+            if (allSelected) {
+                icon.innerHTML = '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>';
+                icon.classList.remove('text-gray-400');
+                icon.classList.add('text-blue-600');
+            } else {
+                icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>';
+                icon.classList.remove('text-blue-600');
+                icon.classList.add('text-gray-400');
+            }
+        }
+
+        function updateSelectedCount() {
+            const count = globalSelectedIds.size;
+            document.getElementById('selected-count').textContent = count;
+            document.getElementById('btn-calculate').disabled = count === 0;
+            
+            const allOnPage = currentFiles.map(f => f.id);
+            const allSelected = allOnPage.length > 0 && allOnPage.every(id => globalSelectedIds.has(id));
+            document.getElementById('btn-toggle-page').textContent = allSelected ? 'Снять выделение на странице' : 'Выбрать на странице';
+        }
+
+        async function calculateStats() {
+            if (globalSelectedIds.size === 0) return;
+            const btn = document.getElementById('btn-calculate');
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> Считаем...';
+            try {
+                const result = await fetchApi('/api/v1/calculate', {
+                    method: 'POST',
+                    body: JSON.stringify({ file_ids: Array.from(globalSelectedIds) }),
+                });
+                renderCalcResults(result);
+            } catch (err) {
+                alert('Ошибка расчёта');
+            } finally {
+                btn.disabled = globalSelectedIds.size === 0;
+                btn.innerHTML = '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg> Произвести расчёты (<span id="selected-count">' + globalSelectedIds.size + '</span>)';
+            }
+        }
+
+        function renderCalcResults(result) {
+            document.getElementById('calc-result-block').classList.remove('hidden');
+            const totalStatsDiv = document.getElementById('total-stats');
+            totalStatsDiv.innerHTML = Object.entries(result.total_statistics)
+                .map(([digit, count]) => '<div class="bg-white p-3 rounded shadow-sm text-center"><div class="text-2xl font-bold text-blue-600">' + digit + '</div><div class="text-sm text-gray-500">' + count + ' раз</div></div>').join('');
+            const fileStatsDiv = document.getElementById('file-stats');
+            fileStatsDiv.innerHTML = result.file_statistics
+                .map(stat => '<div class="bg-white p-3 rounded shadow-sm flex justify-between items-center text-sm"><span class="font-mono truncate max-w-xs">' + stat.file_name + '</span><span class="text-gray-600">' + Object.entries(stat.counts).map(([d, c]) => d + ':' + c).join(', ') + '</span></div>').join('');
+        }
+
+        window.onload = function() {
+            updateSortIcons();
+            checkDownloadStatus();
+        };
+
+        updateSelectedCount();
+    </script>
+</body>
+</html>
